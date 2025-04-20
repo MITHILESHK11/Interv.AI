@@ -76,40 +76,81 @@ def show_interview_page():
                 st.markdown(f"**Feedback:** {evaluation['feedback']}")
                 st.markdown(f"**Suggested Improvements:** {evaluation['improvements']}")
         else:
-            # Show recording interface
-            if not st.session_state.is_listening:
-                if st.button("Start Recording Answer", key="start_recording"):
-                    st.session_state.is_listening = True
-                    st.rerun()
-            else:
-                # Listening mode active
-                speech_result = recognize_speech(timeout=60)
-                
-                if speech_result["success"]:
-                    # Successfully recorded answer
-                    answer_text = speech_result["text"]
-                    st.session_state.answers.append(answer_text)
-                    st.session_state.is_listening = False
-                    
-                    # Evaluate the answer
-                    with st.spinner("Evaluating your answer..."):
-                        evaluation = evaluate_answer(
-                            current_question,
-                            answer_text,
-                            st.session_state.selected_round,
-                            st.session_state.selected_topic,
-                            st.session_state.selected_difficulty
-                        )
-                        st.session_state.evaluations.append(evaluation)
-                        st.session_state.total_score += evaluation["score"]
-                    
-                    st.rerun()
-                else:
-                    # Failed to record
-                    st.error(speech_result["error"])
-                    if st.button("Try Again", key="try_recording_again"):
-                        st.session_state.is_listening = False
+            # Initialize input method state if needed
+            if "input_method" not in st.session_state:
+                st.session_state.input_method = "voice"
+            
+            # Input method selection
+            st.radio("Select how to provide your answer:", ["Voice", "Text"], key="input_method_choice", 
+                     horizontal=True, on_change=lambda: setattr(st.session_state, "input_method", st.session_state.input_method_choice.lower()))
+            
+            # Voice input method
+            if st.session_state.input_method == "voice":
+                if not st.session_state.is_listening:
+                    if st.button("Start Recording Answer", key="start_recording"):
+                        st.session_state.is_listening = True
                         st.rerun()
+                else:
+                    # Listening mode active
+                    speech_result = recognize_speech(timeout=60)
+                    
+                    if speech_result["success"]:
+                        # Successfully recorded answer
+                        answer_text = speech_result["text"]
+                        st.session_state.answers.append(answer_text)
+                        st.session_state.is_listening = False
+                        
+                        # Evaluate the answer
+                        with st.spinner("Evaluating your answer..."):
+                            evaluation = evaluate_answer(
+                                current_question,
+                                answer_text,
+                                st.session_state.selected_round,
+                                st.session_state.selected_topic,
+                                st.session_state.selected_difficulty
+                            )
+                            st.session_state.evaluations.append(evaluation)
+                            st.session_state.total_score += evaluation["score"]
+                        
+                        st.rerun()
+                    else:
+                        # Failed to record
+                        st.error(speech_result["error"])
+                        if st.button("Try Again", key="try_recording_again"):
+                            st.session_state.is_listening = False
+                            st.rerun()
+            
+            # Text input method
+            else:  # text input
+                # Check if we need special code editor for coding questions
+                use_code_editor = "Coding" in st.session_state.selected_round
+                
+                if use_code_editor:
+                    answer_text = st.text_area("Type your code answer:", height=300, key="code_answer", 
+                                              help="Write your code solution here. Use proper indentation and formatting.")
+                    st.info("For coding questions, please include comments explaining your approach.")
+                else:
+                    answer_text = st.text_area("Type your answer:", height=200, key="text_answer")
+                
+                if st.button("Submit Answer", key="submit_text_answer"):
+                    if answer_text.strip():
+                        st.session_state.answers.append(answer_text)
+                        
+                        # Evaluate the answer
+                        with st.spinner("Evaluating your answer..."):
+                            evaluation = evaluate_answer(
+                                current_question,
+                                answer_text,
+                                st.session_state.selected_round,
+                                st.session_state.selected_topic,
+                                st.session_state.selected_difficulty
+                            )
+                            st.session_state.evaluations.append(evaluation)
+                            st.session_state.total_score += evaluation["score"]
+                        
+                        st.rerun()
+                    else:
+                        st.error("Please enter an answer before submitting.")
     
     # Navigation buttons
     nav_container = st.container()

@@ -23,11 +23,21 @@ def generate_interview_questions(round_type, topic, difficulty, num_questions=5)
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
         
-        prompt = f"""Generate {num_questions} {difficulty} level interview questions for a {round_type} round interview on the topic "{topic}".
-        The questions should be challenging but appropriate for the {difficulty} difficulty level.
-        Format the response as a numbered list with just the questions, no additional text.
-        Each question should be concise and clear.
-        """
+        # Different prompt for coding rounds
+        if "Coding" in round_type:
+            prompt = f"""Generate {num_questions} {difficulty} level coding interview questions for a {round_type} interview on the topic "{topic}".
+            The questions should be challenging but appropriate for the {difficulty} difficulty level.
+            Each question should require writing actual code.
+            Format the response as a numbered list with just the questions, no additional text.
+            Each question should be a specific coding task that requires implementation of a function, algorithm, or data structure.
+            Include specific requirements like input/output formats, constraints, and examples if appropriate.
+            """
+        else:
+            prompt = f"""Generate {num_questions} {difficulty} level interview questions for a {round_type} round interview on the topic "{topic}".
+            The questions should be challenging but appropriate for the {difficulty} difficulty level.
+            Format the response as a numbered list with just the questions, no additional text.
+            Each question should be concise and clear.
+            """
         
         response = model.generate_content(prompt)
         
@@ -75,7 +85,28 @@ def evaluate_answer(question, answer, round_type, topic, difficulty):
     try:
         model = genai.GenerativeModel('gemini-1.5-pro')
         
-        prompt = f"""As an expert {round_type} interviewer specializing in {topic}, evaluate the following answer to this {difficulty} level question:
+        # Different prompt for coding rounds
+        if "Coding" in round_type:
+            prompt = f"""As an expert {round_type} interviewer specializing in {topic}, evaluate the following code solution to this {difficulty} level question:
+
+Question: {question}
+
+Code Solution: {answer}
+
+Provide your evaluation in the following format:
+Score: [Give a score out of 10]
+Feedback: [Provide constructive feedback about the code's correctness, efficiency, and style]
+Improvements: [Suggest specific improvements the candidate could make]
+
+Be fair but thorough in your assessment. Consider the:
+- Correctness (does it solve the problem correctly?)
+- Efficiency (time and space complexity)
+- Code quality (readability, style, naming conventions)
+- Error handling (edge cases considered)
+- Comments and documentation
+"""
+        else:
+            prompt = f"""As an expert {round_type} interviewer specializing in {topic}, evaluate the following answer to this {difficulty} level question:
 
 Question: {question}
 

@@ -15,6 +15,20 @@ INTERVIEW_ROUNDS = {
         "Distributed Systems",
         "Software Engineering"
     ],
+    "Coding Round": [
+        "Python Coding",
+        "JavaScript Coding",
+        "Java Coding",
+        "C++ Coding",
+        "SQL Queries",
+        "Algorithm Implementation",
+        "Data Structure Implementation",
+        "API Development",
+        "Frontend Coding",
+        "Backend Coding",
+        "Full Stack Coding",
+        "React Coding"
+    ],
     "HR/Behavioral Round": [
         "Leadership Experience",
         "Team Collaboration",
@@ -55,7 +69,7 @@ INTERVIEW_ROUNDS = {
         "Critical Reasoning",
         "Probability and Statistics"
     ],
-    "Coding Round": [
+    "Algorithm Coding Round": [
         "Array Manipulation",
         "String Processing",
         "Linked Lists",

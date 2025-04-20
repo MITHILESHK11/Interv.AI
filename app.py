@@ -35,7 +35,8 @@ st.markdown("""
 This application simulates a real interview experience with:
 - Dynamic interview questions based on topics and difficulty
 - Audio-based question delivery
-- Speech recognition for your answers
+- Both speech recognition and text input for your answers
+- Specialized coding questions with code evaluation
 - AI evaluation of your responses
 - Performance report generation
 """)
@@ -109,22 +110,26 @@ if not st.session_state.interview_started:
     st.markdown("""
     1. **Select Interview Parameters**: Choose the round type, topic, and difficulty level
     2. **Start the Interview**: The system will generate questions based on your selections
-    3. **Answer Verbally**: Speak into your microphone to answer the questions
+    3. **Answer Questions**: Either speak into your microphone or type your answers (including code)
     4. **Get Evaluated**: The AI will evaluate your responses in real-time
     5. **Receive Feedback**: Get a detailed performance report after completing the interview
     """)
     
     # Features section
     st.subheader("Key Features")
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown("- 🎯 **Dynamic Question Generation**")
         st.markdown("- 🔊 **Audio-Driven Interaction**")
-        st.markdown("- 🎙️ **Answer Recording & Recognition**")
+        st.markdown("- 🎙️ **Voice & Text Input Options**")
     with col2:
-        st.markdown("- 💡 **Answer Feedback / Evaluation**")
-        st.markdown("- 🧾 **Scorecard / Feedback Report**")
-        st.markdown("- 💼 **Multiple Interview Rounds**")
+        st.markdown("- 💻 **Code-Specific Questions**")
+        st.markdown("- 💡 **AI Answer Evaluation**")
+        st.markdown("- 📊 **Performance Analytics**")
+    with col3:
+        st.markdown("- 🧾 **Detailed Feedback Report**")
+        st.markdown("- 💼 **Multiple Interview Types**")
+        st.markdown("- 🚀 **Powered by Gemini 1.5 Pro**")
 else:
     # Import and include the interview page if interview started
     from pages.interview import show_interview_page
