@@ -1,10 +1,6 @@
 import streamlit as st
 import os
 import pandas as pd
-import pyttsx3
-import speech_recognition as sr
-import threading
-import time
 from datetime import datetime
 import matplotlib.pyplot as plt
 import plotly.express as px
@@ -116,113 +112,8 @@ DIFFICULTY_LEVELS = [
 ]
 
 # =========================================================================
-# AUDIO PROCESSING FUNCTIONS
+# PLACEHOLDER FOR REMOVED AUDIO PROCESSING FUNCTIONS
 # =========================================================================
-
-# Initialize the text-to-speech engine
-def init_tts_engine():
-    """Initialize and return the text-to-speech engine"""
-    engine = pyttsx3.init()
-    # Set properties (optional)
-    engine.setProperty('rate', 150)  # Speed of speech
-    engine.setProperty('volume', 0.9)  # Volume (0.0 to 1.0)
-    return engine
-
-# Text-to-speech function
-def speak_text(text, engine=None, block=True):
-    """
-    Convert text to speech and speak it.
-    
-    Args:
-        text: The text to be spoken
-        engine: TTS engine, will initialize one if not provided
-        block: Whether to block until speech is complete
-    """
-    if engine is None:
-        engine = init_tts_engine()
-    
-    if block:
-        engine.say(text)
-        engine.runAndWait()
-    else:
-        # Use a thread to avoid blocking the Streamlit UI
-        def speak_thread():
-            engine.say(text)
-            engine.runAndWait()
-        
-        thread = threading.Thread(target=speak_thread)
-        thread.daemon = True  # Allow the thread to be terminated when the main program exits
-        thread.start()
-        return thread
-
-# Speech recognition function
-def recognize_speech(timeout=10):
-    """
-    Record audio from the microphone and convert it to text.
-    
-    Args:
-        timeout: Maximum recording time in seconds
-        
-    Returns:
-        A dictionary with the recognized text and status
-    """
-    recognizer = sr.Recognizer()
-    
-    try:
-        with sr.Microphone() as source:
-            st.info("Listening... Speak now.")
-            # Adjust for ambient noise
-            recognizer.adjust_for_ambient_noise(source, duration=0.5)
-            
-            # Listen for audio
-            try:
-                audio = recognizer.listen(source, timeout=timeout)
-                st.info("Processing your answer...")
-                
-                # Recognize speech using Google Speech Recognition
-                text = recognizer.recognize_google(audio)
-                return {"success": True, "text": text, "error": None}
-            
-            except sr.WaitTimeoutError:
-                return {"success": False, "text": "", "error": "No speech detected within the timeout period."}
-            except sr.UnknownValueError:
-                return {"success": False, "text": "", "error": "Could not understand the audio. Please try again."}
-            except Exception as e:
-                return {"success": False, "text": "", "error": f"Error recognizing speech: {str(e)}"}
-    
-    except Exception as e:
-        return {"success": False, "text": "", "error": f"Error accessing microphone: {str(e)}"}
-
-# Audio playback with countdown display
-def speak_with_countdown(text, engine=None):
-    """
-    Speak text with a visual countdown in Streamlit.
-    
-    Args:
-        text: Text to be spoken
-        engine: TTS engine to use (optional)
-    """
-    if engine is None:
-        engine = init_tts_engine()
-    
-    # Calculate approximate speaking time (rough estimate)
-    words = len(text.split())
-    speaking_time = max(3, words * 0.5)  # ~ 0.5 seconds per word, minimum 3 seconds
-    
-    # Start speaking in a non-blocking way
-    thread = speak_text(text, engine, block=False)
-    
-    # Display countdown
-    placeholder = st.empty()
-    start_time = time.time()
-    
-    while thread.is_alive():
-        elapsed = time.time() - start_time
-        remaining = max(0, speaking_time - elapsed)
-        placeholder.info(f"Speaking... {remaining:.1f}s")
-        time.sleep(0.1)
-    
-    placeholder.empty()
 
 # =========================================================================
 # GEMINI API FUNCTIONS
@@ -602,10 +493,6 @@ def generate_performance_report(interview_data):
 def show_interview_page():
     """Display the interview interface once the interview has started"""
     
-    # Initialize or get TTS engine
-    if "tts_engine" not in st.session_state:
-        st.session_state.tts_engine = init_tts_engine()
-    
     # Generate questions if not already generated
     if not st.session_state.questions:
         with st.spinner("Generating interview questions..."):
@@ -642,20 +529,11 @@ def show_interview_page():
     with question_container:
         st.subheader("Question:")
         st.markdown(f"{current_question}")
-        
-        # Speak the question when the button is clicked
-        if st.button("Listen to Question", key="speak_question"):
-            with st.spinner("Speaking..."):
-                speak_with_countdown(current_question, st.session_state.tts_engine)
     
-    # Record answer
+    # Answer section
     answer_container = st.container()
     with answer_container:
         st.subheader("Your Answer:")
-        
-        # Check if we're in listening mode
-        if "is_listening" not in st.session_state:
-            st.session_state.is_listening = False
         
         # Check if we've received an answer for this question
         if current_index < len(st.session_state.answers):
@@ -671,81 +549,35 @@ def show_interview_page():
                 st.markdown(f"**Feedback:** {evaluation['feedback']}")
                 st.markdown(f"**Suggested Improvements:** {evaluation['improvements']}")
         else:
-            # Initialize input method state if needed
-            if "input_method" not in st.session_state:
-                st.session_state.input_method = "voice"
+            # Text input only (with special handling for coding questions)
+            use_code_editor = "Coding" in st.session_state.selected_round
             
-            # Input method selection
-            st.radio("Select how to provide your answer:", ["Voice", "Text"], key="input_method_choice", 
-                     horizontal=True, on_change=lambda: setattr(st.session_state, "input_method", st.session_state.input_method_choice.lower()))
+            if use_code_editor:
+                answer_text = st.text_area("Type your code answer:", height=300, key="code_answer", 
+                                          help="Write your code solution here. Use proper indentation and formatting.")
+                st.info("For coding questions, please include comments explaining your approach.")
+            else:
+                answer_text = st.text_area("Type your answer:", height=200, key="text_answer")
             
-            # Voice input method
-            if st.session_state.input_method == "voice":
-                if not st.session_state.is_listening:
-                    if st.button("Start Recording Answer", key="start_recording"):
-                        st.session_state.is_listening = True
-                        st.rerun()
-                else:
-                    # Listening mode active
-                    speech_result = recognize_speech(timeout=60)
+            if st.button("Submit Answer", key="submit_text_answer"):
+                if answer_text.strip():
+                    st.session_state.answers.append(answer_text)
                     
-                    if speech_result["success"]:
-                        # Successfully recorded answer
-                        answer_text = speech_result["text"]
-                        st.session_state.answers.append(answer_text)
-                        st.session_state.is_listening = False
-                        
-                        # Evaluate the answer
-                        with st.spinner("Evaluating your answer..."):
-                            evaluation = evaluate_answer(
-                                current_question,
-                                answer_text,
-                                st.session_state.selected_round,
-                                st.session_state.selected_topic,
-                                st.session_state.selected_difficulty
-                            )
-                            st.session_state.evaluations.append(evaluation)
-                            st.session_state.total_score += evaluation["score"]
-                        
-                        st.rerun()
-                    else:
-                        # Failed to record
-                        st.error(speech_result["error"])
-                        if st.button("Try Again", key="try_recording_again"):
-                            st.session_state.is_listening = False
-                            st.rerun()
-            
-            # Text input method
-            else:  # text input
-                # Check if we need special code editor for coding questions
-                use_code_editor = "Coding" in st.session_state.selected_round
-                
-                if use_code_editor:
-                    answer_text = st.text_area("Type your code answer:", height=300, key="code_answer", 
-                                              help="Write your code solution here. Use proper indentation and formatting.")
-                    st.info("For coding questions, please include comments explaining your approach.")
+                    # Evaluate the answer
+                    with st.spinner("Evaluating your answer..."):
+                        evaluation = evaluate_answer(
+                            current_question,
+                            answer_text,
+                            st.session_state.selected_round,
+                            st.session_state.selected_topic,
+                            st.session_state.selected_difficulty
+                        )
+                        st.session_state.evaluations.append(evaluation)
+                        st.session_state.total_score += evaluation["score"]
+                    
+                    st.rerun()
                 else:
-                    answer_text = st.text_area("Type your answer:", height=200, key="text_answer")
-                
-                if st.button("Submit Answer", key="submit_text_answer"):
-                    if answer_text.strip():
-                        st.session_state.answers.append(answer_text)
-                        
-                        # Evaluate the answer
-                        with st.spinner("Evaluating your answer..."):
-                            evaluation = evaluate_answer(
-                                current_question,
-                                answer_text,
-                                st.session_state.selected_round,
-                                st.session_state.selected_topic,
-                                st.session_state.selected_difficulty
-                            )
-                            st.session_state.evaluations.append(evaluation)
-                            st.session_state.total_score += evaluation["score"]
-                        
-                        st.rerun()
-                    else:
-                        st.error("Please enter an answer before submitting.")
+                    st.error("Please enter an answer before submitting.")
     
     # Navigation buttons
     nav_container = st.container()
@@ -836,11 +668,10 @@ st.title("🎙️ AI-Powered Virtual Interview Simulator")
 st.markdown("""
 This application simulates a real interview experience with:
 - Dynamic interview questions based on topics and difficulty
-- Audio-based question delivery
-- Both speech recognition and text input for your answers
+- Text input for your answers with specialized coding input options
 - Specialized coding questions with code evaluation
-- AI evaluation of your responses
-- Performance report generation
+- AI evaluation of your responses using Gemini 1.5 Pro
+- Comprehensive performance report generation
 """)
 
 # Sidebar for interview configuration
@@ -912,7 +743,7 @@ if not st.session_state.interview_started:
     st.markdown("""
     1. **Select Interview Parameters**: Choose the round type, topic, and difficulty level
     2. **Start the Interview**: The system will generate questions based on your selections
-    3. **Answer Questions**: Either speak into your microphone or type your answers (including code)
+    3. **Answer Questions**: Type your answers (including specialized code editor for coding questions)
     4. **Get Evaluated**: The AI will evaluate your responses in real-time
     5. **Receive Feedback**: Get a detailed performance report after completing the interview
     """)
@@ -922,14 +753,14 @@ if not st.session_state.interview_started:
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown("- 🎯 **Dynamic Question Generation**")
-        st.markdown("- 🔊 **Audio-Driven Interaction**")
-        st.markdown("- 🎙️ **Voice & Text Input Options**")
-    with col2:
         st.markdown("- 💻 **Code-Specific Questions**")
-        st.markdown("- 💡 **AI Answer Evaluation**")
+        st.markdown("- 📝 **Specialized Input Options**")
+    with col2:
+        st.markdown("- 🧠 **Smart Answer Evaluation**")
         st.markdown("- 📊 **Performance Analytics**")
+        st.markdown("- 📑 **Code Analysis**")
     with col3:
-        st.markdown("- 🧾 **Detailed Feedback Report**")
+        st.markdown("- 📈 **Detailed Feedback Report**")
         st.markdown("- 💼 **Multiple Interview Types**")
         st.markdown("- 🚀 **Powered by Gemini 1.5 Pro**")
 else:
