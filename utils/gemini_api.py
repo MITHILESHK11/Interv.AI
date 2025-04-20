@@ -21,7 +21,7 @@ def generate_interview_questions(round_type, topic, difficulty, num_questions=5)
         List of generated questions
     """
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-pro')
         
         prompt = f"""Generate {num_questions} {difficulty} level interview questions for a {round_type} round interview on the topic "{topic}".
         The questions should be challenging but appropriate for the {difficulty} difficulty level.
@@ -73,7 +73,7 @@ def evaluate_answer(question, answer, round_type, topic, difficulty):
         Dictionary containing evaluation score and feedback
     """
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-pro')
         
         prompt = f"""As an expert {round_type} interviewer specializing in {topic}, evaluate the following answer to this {difficulty} level question:
 
@@ -152,7 +152,7 @@ def generate_report_summary(interview_data):
         Dictionary with report sections
     """
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-pro')
         
         # Prepare questions and answers for the prompt
         qa_pairs = ""

@@ -132,4 +132,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.markdown("© 2023 AI Interview Simulator | Powered by Google Gemini API")
+st.markdown("© 2023 AI Interview Simulator | Powered by Google Gemini 1.5 Pro API")
