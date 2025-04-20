@@ -1,0 +1,7 @@
+streamlit
+google-generativeai
+matplotlib
+pandas
+plotly
+pyttsx3
+SpeechRecognition
