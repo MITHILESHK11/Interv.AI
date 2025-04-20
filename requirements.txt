@@ -5,3 +5,4 @@ pandas
 plotly
 pyttsx3
 SpeechRecognition
+pyaudio
