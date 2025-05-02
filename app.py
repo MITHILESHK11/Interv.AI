@@ -664,7 +664,7 @@ if "initialized" not in st.session_state:
     
 
 # Main application header
-st.title("🎙️ AI-Powered Virtual Interview Simulator")
+st.title("🎙️ Interv.AI")
 st.markdown("""
 This application simulates a real interview experience with:
 - Dynamic interview questions based on topics and difficulty
