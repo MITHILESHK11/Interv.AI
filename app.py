@@ -782,7 +782,7 @@ def main():
         .evaluation-container {
             background-color: #f9f9f9;
             padding: 1.5rem;
-            border-radius: 10px;
+            border-radius: 20px;
             margin: 1rem 0;
             border-left: 5px solid #3366CC;
         }
