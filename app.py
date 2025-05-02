@@ -1,27 +1,17 @@
 import streamlit as st
 import os
 import pandas as pd
-import numpy as np
 from datetime import datetime
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
 import re
 import google.generativeai as genai
-from PIL import Image
-import requests
-import io
-import base64
-import time
-import functools
-from googleapiclient.discovery import build
-import pytesseract
-from concurrent.futures import ThreadPoolExecutor
 
 # Set page config
 st.set_page_config(
-    page_title="InterviewMaster AI - Professional Interview Simulator",
-    page_icon="🎯",
+    page_title="Interv.AI",
+    page_icon="🎙️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -122,39 +112,8 @@ DIFFICULTY_LEVELS = [
 ]
 
 # =========================================================================
-# CACHE FUNCTIONS FOR PERFORMANCE
+# PLACEHOLDER FOR REMOVED AUDIO PROCESSING FUNCTIONS
 # =========================================================================
-
-# Cache for API results to improve performance
-@st.cache_data(ttl=3600)
-def cached_generate_interview_questions(round_type, topic, difficulty, num_questions=5):
-    """Cached version of generate_interview_questions"""
-    return generate_interview_questions(round_type, topic, difficulty, num_questions)
-
-@st.cache_data(ttl=3600)
-def cached_evaluate_answer(question, answer, round_type, topic, difficulty):
-    """Cached version of evaluate_answer"""
-    return evaluate_answer(question, answer, round_type, topic, difficulty)
-
-@st.cache_data(ttl=3600)
-def cached_generate_report_summary(interview_data):
-    """Cached version of generate_report_summary"""
-    return generate_report_summary(interview_data)
-
-@st.cache_data(ttl=3600)
-def cached_analyze_resume(resume_image):
-    """Cached version of analyze_resume"""
-    return analyze_resume(resume_image)
-
-@st.cache_data(ttl=3600)
-def cached_search_google(query, num_results=3):
-    """Cached version of search_google"""
-    return search_google(query, num_results)
-
-@st.cache_data(ttl=3600)
-def cached_verify_answer(question, answer, round_type, topic):
-    """Cached version of verify_answer"""
-    return verify_answer(question, answer, round_type, topic)
 
 # =========================================================================
 # GEMINI API FUNCTIONS
@@ -381,242 +340,6 @@ Be professional, constructive, and specific in your feedback.
         }
 
 # =========================================================================
-# RESUME ANALYSIS FUNCTIONS
-# =========================================================================
-
-def extract_text_from_image(image):
-    """
-    Extract text from uploaded resume image using pytesseract OCR.
-    
-    Args:
-        image: PIL Image object
-    
-    Returns:
-        Extracted text as string
-    """
-    try:
-        # Convert image to grayscale for better OCR
-        img_gray = image.convert('L')
-        
-        # Extract text using pytesseract
-        text = pytesseract.image_to_string(img_gray)
-        
-        return text
-    except Exception as e:
-        st.error(f"Error extracting text from image: {str(e)}")
-        return ""
-
-def analyze_resume(resume_image):
-    """
-    Analyze the resume using Gemini multimodal capabilities.
-    
-    Args:
-        resume_image: The uploaded resume image
-    
-    Returns:
-        Dictionary with analysis results
-    """
-    try:
-        # First, try to extract text from image using OCR
-        extracted_text = extract_text_from_image(resume_image)
-        
-        # If text extraction fails or is limited, use Gemini's image understanding
-        model = genai.GenerativeModel('gemini-1.5-pro')
-        
-        # Prepare the image for Gemini API
-        bytes_data = io.BytesIO()
-        resume_image.save(bytes_data, format=resume_image.format)
-        bytes_data = bytes_data.getvalue()
-        
-        prompt = """Analyze this resume image in detail and provide the following information:
-1. Candidate Name
-2. Contact Information
-3. Education (degrees, institutions, years)
-4. Experience (companies, roles, durations)
-5. Skills (technical, soft skills)
-6. Projects
-7. Certifications
-8. Areas of expertise
-
-Also provide a brief assessment of the candidate's strengths based on the resume.
-If any information is not visible or unclear, indicate so rather than guessing.
-"""
-
-        # For better performance, send both the image and extracted text
-        if extracted_text:
-            prompt += f"\n\nHere is the OCR-extracted text to assist your analysis:\n{extracted_text}"
-        
-        response = model.generate_content([prompt, bytes_data])
-        
-        return {
-            "analysis": response.text,
-            "extracted_text": extracted_text
-        }
-    
-    except Exception as e:
-        st.error(f"Error analyzing resume: {str(e)}")
-        return {
-            "analysis": f"Error analyzing resume: {str(e)}",
-            "extracted_text": ""
-        }
-
-# =========================================================================
-# GOOGLE SEARCH FUNCTIONS
-# =========================================================================
-
-def search_google(query, num_results=3):
-    """
-    Search Google for a query and return results.
-    
-    Args:
-        query: Search query string
-        num_results: Number of results to return
-        
-    Returns:
-        List of search result dictionaries
-    """
-    try:
-        # API key and CSE ID should be set in environment variables
-        api_key = os.getenv("GOOGLE_API_KEY", "")
-        cse_id = os.getenv("GOOGLE_CSE_ID", "")
-        
-        if not api_key or not cse_id:
-            return [{"title": "Google Search API credentials not found", 
-                    "link": "#", 
-                    "snippet": "Please set GOOGLE_API_KEY and GOOGLE_CSE_ID environment variables."}]
-        
-        # Build the service
-        service = build("customsearch", "v1", developerKey=api_key)
-        
-        # Execute the search
-        result = service.cse().list(q=query, cx=cse_id, num=num_results).execute()
-        
-        # Extract search results
-        search_results = []
-        if "items" in result:
-            for item in result["items"]:
-                search_results.append({
-                    "title": item.get("title", ""),
-                    "link": item.get("link", ""),
-                    "snippet": item.get("snippet", "")
-                })
-        
-        return search_results
-    
-    except Exception as e:
-        st.error(f"Error searching Google: {str(e)}")
-        return [{"title": f"Error searching Google: {str(e)}", 
-                "link": "#", 
-                "snippet": "Please try again later or check API credentials."}]
-
-def verify_answer(question, answer, round_type, topic):
-    """
-    Verify the technical accuracy of an answer using Google Search.
-    
-    Args:
-        question: The interview question
-        answer: User's answer to verify
-        round_type: Type of interview round
-        topic: Specific topic of the question
-        
-    Returns:
-        Dictionary with verification results
-    """
-    try:
-        # Generate a search query based on the question and answer
-        search_query = f"{question} {topic}"
-        
-        # Search Google for related information
-        search_results = search_google(search_query)
-        
-        # Let Gemini analyze the search results and verify the answer
-        model = genai.GenerativeModel('gemini-1.5-pro')
-        
-        # Prepare search results for the prompt
-        search_info = ""
-        for i, result in enumerate(search_results):
-            search_info += f"Source {i+1}: {result['title']}\n"
-            search_info += f"URL: {result['link']}\n"
-            search_info += f"Description: {result['snippet']}\n\n"
-        
-        prompt = f"""As a technical verification expert for {topic}, verify the accuracy of this answer to a {round_type} interview question.
-
-Question: {question}
-
-Candidate's Answer: {answer}
-
-Here are some reference sources from a web search:
-{search_info}
-
-Provide your verification in the following format:
-Accuracy: [Rate the technical accuracy from 0-10]
-Verification: [Explain whether the answer is technically accurate based on the search results]
-Corrections: [If there are any technical inaccuracies, provide corrections]
-Sources: [Reference which sources support or contradict the answer]
-"""
-        
-        response = model.generate_content(prompt)
-        
-        # Extract verification components from the response
-        raw_text = response.text
-        
-        # Default values
-        verification = {
-            "accuracy": 0,
-            "verification": "Unable to verify answer",
-            "corrections": "N/A",
-            "sources": "No sources available"
-        }
-        
-        # Extract accuracy
-        if "Accuracy:" in raw_text:
-            accuracy_text = raw_text.split("Accuracy:")[1].split("\n")[0].strip()
-            try:
-                # Extract numeric accuracy (handles formats like "7/10" or just "7")
-                accuracy_match = re.search(r'(\d+(?:\.\d+)?)', accuracy_text)
-                if accuracy_match:
-                    accuracy = float(accuracy_match.group(1))
-                    # Normalize to be out of 10 if needed
-                    if "/10" in accuracy_text or "/10." in accuracy_text:
-                        verification["accuracy"] = accuracy
-                    else:
-                        verification["accuracy"] = min(accuracy, 10)  # Cap at 10 if higher
-            except:
-                verification["accuracy"] = 5  # Default to middle score if parsing fails
-        
-        # Extract verification
-        if "Verification:" in raw_text:
-            if "Corrections:" in raw_text:
-                verify = raw_text.split("Verification:")[1].split("Corrections:")[0].strip()
-            else:
-                verify = raw_text.split("Verification:")[1].strip()
-            verification["verification"] = verify
-        
-        # Extract corrections
-        if "Corrections:" in raw_text:
-            if "Sources:" in raw_text:
-                corrections = raw_text.split("Corrections:")[1].split("Sources:")[0].strip()
-            else:
-                corrections = raw_text.split("Corrections:")[1].strip()
-            verification["corrections"] = corrections
-        
-        # Extract sources
-        if "Sources:" in raw_text:
-            sources = raw_text.split("Sources:")[1].strip()
-            verification["sources"] = sources
-        
-        return verification
-    
-    except Exception as e:
-        st.error(f"Error verifying answer: {str(e)}")
-        return {
-            "accuracy": 0,
-            "verification": f"Error during verification: {str(e)}",
-            "corrections": "Unable to provide corrections",
-            "sources": "No sources available"
-        }
-
-# =========================================================================
 # REPORT GENERATOR
 # =========================================================================
 
@@ -628,614 +351,422 @@ def generate_performance_report(interview_data):
         interview_data: Dictionary containing all interview information and results
         
     Returns:
-        HTML report as a string
+        None (displays the report in the Streamlit app)
     """
-    if not interview_data or not interview_data.get("questions"):
-        return "<h2>No interview data available</h2>"
+    st.title("🧾 Interview Performance Report")
     
-    # Calculate interview stats
-    total_questions = len(interview_data["questions"])
-    average_score = interview_data["total_score"] / total_questions if total_questions > 0 else 0
+    # Display interview metadata
+    st.subheader("Interview Overview")
     
-    # Generate interview summary using Gemini
-    summary_report = cached_generate_report_summary(interview_data)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Interview Type", interview_data["round_type"])
+    with col2:
+        st.metric("Topic", interview_data["topic"])
+    with col3:
+        st.metric("Difficulty", interview_data["difficulty"])
     
-    # Create a DataFrame for question-level analysis
+    st.metric("Overall Score", f"{interview_data['average_score']:.1f}/10")
+    
+    # Display the AI-generated summary
+    st.subheader("Performance Summary")
+    st.markdown(interview_data["report_summary"])
+    
+    # Q&A breakdown with scores
+    st.subheader("Question-by-Question Breakdown")
+    
     qa_data = []
-    for i, (q, a, e) in enumerate(zip(interview_data["questions"], 
-                                     interview_data["answers"], 
-                                     interview_data["evaluations"])):
+    for i, (question, answer, evaluation) in enumerate(zip(
+            interview_data["questions"], 
+            interview_data["answers"], 
+            interview_data["evaluations"])):
         qa_data.append({
-            "question_number": i + 1,
-            "question": q,
-            "answer": a,
-            "score": e["score"],
-            "feedback": e["feedback"],
-            "improvements": e["improvements"]
+            "Question Number": i+1,
+            "Question": question,
+            "Your Answer": answer,
+            "Score": evaluation["score"],
+            "Feedback": evaluation["feedback"]
         })
     
-    df = pd.DataFrame(qa_data)
+    qa_df = pd.DataFrame(qa_data)
     
-    # Create visualizations
+    # Display the Q&A in a nice format
+    for i, row in qa_df.iterrows():
+        with st.expander(f"Question {i+1}: {row['Question'][:100]}..."):
+            st.markdown(f"**Question:** {row['Question']}")
+            st.markdown(f"**Your Answer:** {row['Your Answer']}")
+            st.markdown(f"**Score:** {row['Score']}/10")
+            st.markdown(f"**Feedback:** {row['Feedback']}")
     
-    # Score distribution
-    fig_score_dist = px.histogram(df, x="score", nbins=10, 
-                                 title="Score Distribution",
-                                 labels={"score": "Score", "count": "Number of Questions"},
-                                 color_discrete_sequence=["#3366CC"])
-    fig_score_dist.update_layout(xaxis_range=[0, 10])
+    # Visualizations
+    st.subheader("Performance Visualization")
     
-    # Score per question
-    fig_score_per_q = px.bar(df, x="question_number", y="score", 
-                           title="Score per Question",
-                           labels={"question_number": "Question Number", "score": "Score"},
-                           color_discrete_sequence=["#3366CC"])
-    fig_score_per_q.update_layout(yaxis_range=[0, 10])
+    # Radar chart of scores using Plotly
+    fig = go.Figure()
     
-    # Performance gauge
-    fig_gauge = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=average_score,
-        title={"text": "Overall Performance"},
-        gauge={
-            "axis": {"range": [0, 10]},
-            "bar": {"color": "#3366CC"},
-            "steps": [
-                {"range": [0, 3.33], "color": "#FF4136"},
-                {"range": [3.33, 6.66], "color": "#FFDC00"},
-                {"range": [6.66, 10], "color": "#2ECC40"}
-            ]
-        }
+    # Truncate long questions for the radar chart
+    labels = [f"Q{i+1}: {q[:30]}..." for i, q in enumerate(interview_data["questions"])]
+    values = [e["score"] for e in interview_data["evaluations"]]
+    
+    fig.add_trace(go.Scatterpolar(
+        r=values,
+        theta=labels,
+        fill='toself',
+        name='Score'
     ))
-    fig_gauge.update_layout(height=300)
     
-    # Generate a timestamp for the report
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 10]
+            )),
+        showlegend=False
+    )
     
-    return {
-        "summary": summary_report,
-        "stats": {
-            "total_questions": total_questions,
-            "average_score": average_score,
-            "timestamp": timestamp
-        },
-        "qa_data": df,
-        "visualizations": {
-            "score_distribution": fig_score_dist,
-            "score_per_question": fig_score_per_q,
-            "performance_gauge": fig_gauge
-        }
-    }
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Score distribution bar chart
+    score_counts = qa_df['Score'].value_counts().sort_index()
+    
+    fig = px.bar(
+        x=score_counts.index,
+        y=score_counts.values,
+        labels={'x': 'Score', 'y': 'Number of Questions'},
+        title='Score Distribution'
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Download options
+    st.subheader("Download Report")
+    
+    # Convert interview data to CSV
+    csv_data = pd.DataFrame({
+        'Question': interview_data["questions"],
+        'Your Answer': interview_data["answers"],
+        'Score': [e["score"] for e in interview_data["evaluations"]],
+        'Feedback': [e["feedback"] for e in interview_data["evaluations"]],
+        'Improvements': [e["improvements"] for e in interview_data["evaluations"]]
+    })
+    
+    csv = csv_data.to_csv(index=False)
+    st.download_button(
+        label="Download CSV Report",
+        data=csv,
+        file_name=f"interview_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        mime="text/csv"
+    )
+    
+    # Try again or return to main menu buttons
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Try Another Interview", key="try_again"):
+            # Reset relevant session state variables
+            st.session_state.interview_started = False
+            st.session_state.interview_completed = False
+            st.session_state.current_question_index = 0
+            st.session_state.questions = []
+            st.session_state.answers = []
+            st.session_state.evaluations = []
+            st.session_state.selected_round = None
+            st.session_state.selected_topic = None
+            st.session_state.selected_difficulty = None
+            st.session_state.total_score = 0
+            st.rerun()
+    
+    with col2:
+        if st.button("Return to Main Menu", key="main_menu"):
+            # Reset all session state variables
+            for key in list(st.session_state.keys()):
+                if key not in ["gemini_api_initialized", "api_key"]:
+                    del st.session_state[key]
+            st.session_state.initialized = True
+            st.session_state.interview_started = False
+            st.session_state.interview_completed = False
+            st.rerun()
 
 # =========================================================================
-# MAIN APPLICATION UI
+# INTERVIEW PAGE
 # =========================================================================
 
-def main():
-    """Main application function"""
+def show_interview_page():
+    """Display the interview interface once the interview has started"""
     
-    # Use session state to maintain state across reruns
-    if "initialized" not in st.session_state:
-        st.session_state.initialized = False
-        st.session_state.api_key = os.environ.get("GEMINI_API_KEY", "")
-        st.session_state.interview_phase = "setup"
-        st.session_state.current_question_index = 0
-        st.session_state.questions = []
-        st.session_state.answers = []
-        st.session_state.evaluations = []
-        st.session_state.total_score = 0
-        st.session_state.interview_data = {}
-        st.session_state.resume_analyzed = False
-        st.session_state.resume_analysis = {}
-        st.session_state.verification_results = {}
+    # Generate questions if not already generated
+    if not st.session_state.questions:
+        with st.spinner("Generating interview questions..."):
+            st.session_state.questions = generate_interview_questions(
+                st.session_state.selected_round,
+                st.session_state.selected_topic,
+                st.session_state.selected_difficulty,
+                st.session_state.num_questions
+            )
     
-    # Custom CSS for enhanced styling
-    st.markdown("""
-    <style>
-        /* Main container styling */
-        .main .block-container {
-            padding-top: 2rem;
-            padding-bottom: 2rem;
-        }
-        
-        /* Header styling */
-        h1 {
-            color: #3366CC;
-            text-align: center;
-            padding-bottom: 1.5rem;
-            border-bottom: 2px solid #f0f2f6;
-            margin-bottom: 2rem;
-        }
-        
-        /* Card-like container for content */
-        .stButton button {
-            width: 100%;
-            border-radius: 5px;
-            height: 3em;
-            font-weight: bold;
-        }
-        
-        /* Form fields */
-        div[data-baseweb="select"] {
-            margin-bottom: 1rem;
-        }
-        
-        /* Metrics styling */
-        [data-testid="stMetricValue"] {
-            font-size: 2rem !important;
-            color: #3366CC !important;
-        }
-        
-        /* Expander styling */
-        .streamlit-expanderHeader {
-            font-weight: bold;
-            color: #3366CC;
-        }
-        
-        /* Success messages */
-        .stSuccess {
-            padding: 1rem;
-            border-radius: 5px;
-        }
-        
-        /* Evaluation container */
-        .evaluation-container {
-            background-color: #f9f9f9;
-            padding: 10rem;
-            border-radius: 20px;
-            margin: 1rem 0;
-            border-left: 5px solid #3366CC;
-        }
-        
-        /* Footer styling */
-        footer {
-            visibility: hidden;
-        }
-    </style>
-    """, unsafe_allow_html=True)
+    # Display current interview progress
+    total_questions = len(st.session_state.questions)
+    current_index = st.session_state.current_question_index
     
-    # Page header with enhanced styling
-    st.markdown("""
-    <h1>🎯 InterviewMaster AI <span style="font-size:0.8em; font-weight:normal; color:#555;">Professional Interview Simulator</span></h1>
-    """, unsafe_allow_html=True)
+    st.progress(current_index / total_questions)
+    st.markdown(f"**Question {current_index + 1} of {total_questions}**")
     
-    # Sidebar for configuration and controls
-    with st.sidebar:
-        st.header("Interview Configuration")
+    # Display interview metadata
+    st.sidebar.markdown("## Current Interview")
+    st.sidebar.markdown(f"**Round:** {st.session_state.selected_round}")
+    st.sidebar.markdown(f"**Topic:** {st.session_state.selected_topic}")
+    st.sidebar.markdown(f"**Difficulty:** {st.session_state.selected_difficulty}")
+    
+    # If the interview is complete, show the report
+    if st.session_state.interview_completed:
+        show_report_page()
+        return
+    
+    # Get current question
+    current_question = st.session_state.questions[current_index]
+    
+    # Display the question
+    question_container = st.container()
+    with question_container:
+        st.subheader("Question:")
+        st.markdown(f"{current_question}")
+    
+    # Answer section
+    answer_container = st.container()
+    with answer_container:
+        st.subheader("Your Answer:")
         
-        # API Key input - Allow user override if needed
-        api_key = st.text_input("Gemini API Key", value=st.session_state.api_key, type="password")
-        
-        if api_key:
-            if not st.session_state.initialized or api_key != st.session_state.api_key:
-                st.session_state.api_key = api_key
-                with st.spinner("Initializing API..."):
-                    success = initialize_gemini_api(api_key)
-                    if success:
-                        st.session_state.initialized = True
-                        st.success("API initialized successfully!")
-                    else:
-                        st.error("Failed to initialize API. Please check your API key.")
-        else:
-            st.warning("Please enter a Gemini API key to proceed.")
-        
-        st.divider()
-        
-        # Resume Upload - New feature
-        st.subheader("Resume Analysis")
-        resume_file = st.file_uploader("Upload your resume (image format)", type=["jpg", "jpeg", "png"])
-        
-        if resume_file and not st.session_state.resume_analyzed:
-            try:
-                with st.spinner("Analyzing your resume..."):
-                    # Load and process image
-                    resume_image = Image.open(resume_file)
-                    
-                    # Analyze resume
-                    st.session_state.resume_analysis = cached_analyze_resume(resume_image)
-                    st.session_state.resume_analyzed = True
-                    
-                    st.success("Resume analyzed successfully!")
-            except Exception as e:
-                st.error(f"Error processing resume: {str(e)}")
-        
-        if st.session_state.resume_analyzed:
-            if st.button("Clear Resume"):
-                st.session_state.resume_analyzed = False
-                st.session_state.resume_analysis = {}
-                st.rerun()
-        
-        st.divider()
-        
-        # Interview setup controls - only show if API is initialized
-        if st.session_state.initialized:
-            round_type = st.selectbox("Interview Round", list(INTERVIEW_ROUNDS.keys()))
-            topic = st.selectbox("Topic", INTERVIEW_ROUNDS[round_type])
-            difficulty = st.selectbox("Difficulty Level", DIFFICULTY_LEVELS)
-            num_questions = st.slider("Number of Questions", min_value=1, max_value=10, value=5)
+        # Check if we've received an answer for this question
+        if current_index < len(st.session_state.answers):
+            # Show previously recorded answer
+            st.markdown(f"{st.session_state.answers[current_index]}")
             
-            if st.button("Start Interview"):
-                with st.spinner("Generating interview questions..."):
-                    # Reset interview state
-                    st.session_state.interview_phase = "questioning"
-                    st.session_state.current_question_index = 0
-                    st.session_state.questions = cached_generate_interview_questions(
-                        round_type, topic, difficulty, num_questions
-                    )
-                    st.session_state.answers = [""] * len(st.session_state.questions)
-                    st.session_state.evaluations = [{}] * len(st.session_state.questions)
-                    st.session_state.total_score = 0
-                    st.session_state.verification_results = {}
+            # Also show evaluation if available
+            if current_index < len(st.session_state.evaluations):
+                evaluation = st.session_state.evaluations[current_index]
+                st.markdown("---")
+                st.subheader("Evaluation:")
+                st.markdown(f"**Score:** {evaluation['score']}/10")
+                st.markdown(f"**Feedback:** {evaluation['feedback']}")
+                st.markdown(f"**Suggested Improvements:** {evaluation['improvements']}")
+        else:
+            # Text input only (with special handling for coding questions)
+            use_code_editor = "Coding" in st.session_state.selected_round
+            
+            if use_code_editor:
+                answer_text = st.text_area("Type your code answer:", height=300, key="code_answer", 
+                                          help="Write your code solution here. Use proper indentation and formatting.")
+                st.info("For coding questions, please include comments explaining your approach.")
+            else:
+                answer_text = st.text_area("Type your answer:", height=200, key="text_answer")
+            
+            if st.button("Submit Answer", key="submit_text_answer"):
+                if answer_text.strip():
+                    st.session_state.answers.append(answer_text)
                     
-                    # Store interview settings
-                    st.session_state.interview_data = {
-                        "round_type": round_type,
-                        "topic": topic,
-                        "difficulty": difficulty,
-                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "questions": st.session_state.questions,
-                        "answers": st.session_state.answers,
-                        "evaluations": st.session_state.evaluations,
-                        "total_score": 0
-                    }
+                    # Evaluate the answer
+                    with st.spinner("Evaluating your answer..."):
+                        evaluation = evaluate_answer(
+                            current_question,
+                            answer_text,
+                            st.session_state.selected_round,
+                            st.session_state.selected_topic,
+                            st.session_state.selected_difficulty
+                        )
+                        st.session_state.evaluations.append(evaluation)
+                        st.session_state.total_score += evaluation["score"]
                     
-                    st.success("Interview questions generated!")
                     st.rerun()
-        
-        # Add helpful information
-        st.divider()
-        st.caption("Developed by AI Interview Simulator Pro Team")
-        st.caption("© 2023 All Rights Reserved")
+                else:
+                    st.error("Please enter an answer before submitting.")
     
-    # Main content area
-    if not st.session_state.initialized:
-        # Welcome page when not initialized
-        st.markdown("""
-        ## Welcome to AI Interview Simulator Pro
-        
-        This application helps you prepare for technical and behavioral interviews by:
-        
-        - Generating realistic interview questions based on your preferences
-        - Evaluating your answers with AI-based feedback
-        - Analyzing your resume to provide personalized insights
-        - Verifying technical answers against authoritative sources
-        - Providing comprehensive performance reports
-        
-        ### Getting Started
-        
-        1. Enter your Gemini API key in the sidebar
-        2. Upload your resume for personalized interview experience (optional)
-        3. Configure your interview settings
-        4. Start the interview and answer the questions
-        5. Receive instant feedback and comprehensive analysis
-        
-        ### Benefits
-        
-        - Practice in a stress-free environment
-        - Get immediate feedback on your answers
-        - Track your progress across multiple practice sessions
-        - Identify areas for improvement
-        - Prepare more effectively for real interviews
-        """)
-        
-        # Display resume analysis if available
-        if st.session_state.resume_analyzed:
-            st.markdown("### Resume Analysis")
-            with st.expander("View Resume Analysis", expanded=True):
-                st.markdown(st.session_state.resume_analysis.get("analysis", "No analysis available"))
-    
-    elif st.session_state.interview_phase == "setup":
-        # Setup phase - Show instructions and resume analysis if available
-        st.markdown("""
-        ## Interview Setup
-        
-        Configure your interview settings in the sidebar and click "Start Interview" to begin.
-        """)
-        
-        # Display resume analysis if available
-        if st.session_state.resume_analyzed:
-            st.markdown("### Resume Analysis")
-            with st.expander("View Resume Analysis", expanded=True):
-                st.markdown(st.session_state.resume_analysis.get("analysis", "No analysis available"))
-    
-    elif st.session_state.interview_phase == "questioning":
-        # Questioning phase - Show current question and answer input
-        progress = st.session_state.current_question_index / len(st.session_state.questions)
-        st.progress(progress)
-        
-        st.subheader(f"Question {st.session_state.current_question_index + 1} of {len(st.session_state.questions)}")
-        st.markdown(f"**{st.session_state.questions[st.session_state.current_question_index]}**")
-        
-        # Check if we have previous answer for this question
-        previous_answer = st.session_state.answers[st.session_state.current_question_index]
-        user_answer = st.text_area("Your Answer:", value=previous_answer, height=200)
-        
-        col1, col2, col3 = st.columns([1, 1, 1])
+    # Navigation buttons
+    nav_container = st.container()
+    with nav_container:
+        st.markdown("---")
+        col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("Previous Question", disabled=st.session_state.current_question_index == 0):
-                st.session_state.current_question_index -= 1
-                st.rerun()
+            if current_index > 0:
+                if st.button("Previous Question", key="prev_question"):
+                    st.session_state.current_question_index -= 1
+                    st.rerun()
         
         with col2:
-            # Improved submit answer button style and placement
-            col1, col2, col3 = st.columns([1, 1, 1])
-            with col1:
-                if st.button("Submit Answer", use_container_width=True, type="primary"):
-                    if not user_answer.strip():
-                        st.warning("Please provide an answer before submitting.")
-                    else:
-                        with st.spinner("Evaluating your answer..."):
-                            # Save the answer
-                            st.session_state.answers[st.session_state.current_question_index] = user_answer
-                            
-                            # Evaluate the answer
-                            evaluation = cached_evaluate_answer(
-                                st.session_state.questions[st.session_state.current_question_index],
-                                user_answer,
-                                st.session_state.interview_data["round_type"],
-                                st.session_state.interview_data["topic"],
-                                st.session_state.interview_data["difficulty"]
-                            )
-                            
-                            st.session_state.evaluations[st.session_state.current_question_index] = evaluation
-                            st.session_state.total_score += evaluation["score"]
-                            st.session_state.interview_data["evaluations"] = st.session_state.evaluations
-                            st.session_state.interview_data["total_score"] = st.session_state.total_score
-                            
-                            # Verify answer using Google Search for technical rounds
-                            if "Technical" in st.session_state.interview_data["round_type"] or "Coding" in st.session_state.interview_data["round_type"]:
-                                with ThreadPoolExecutor() as executor:
-                                    # Run verification in a parallel thread to avoid blocking
-                                    future = executor.submit(cached_verify_answer,
-                                        st.session_state.questions[st.session_state.current_question_index],
-                                        user_answer,
-                                        st.session_state.interview_data["round_type"],
-                                        st.session_state.interview_data["topic"]
-                                    )
-                                    # Store verification results
-                                    verification = future.result()
-                                    if not st.session_state.verification_results:
-                                        st.session_state.verification_results = {}
-                                    st.session_state.verification_results[st.session_state.current_question_index] = verification
-                            
-                            # Show the evaluation
-                            st.success("Answer evaluated!")
-                            
-                            # Display evaluation
-                            st.subheader("Evaluation")
-                            
-                            # Score indicator
-                            score_gauge = go.Figure(go.Indicator(
-                                mode="gauge+number",
-                                value=evaluation["score"],
-                                title={"text": "Score"},
-                                gauge={
-                                    "axis": {"range": [0, 10]},
-                                    "bar": {"color": "#3366CC"},
-                                    "steps": [
-                                        {"range": [0, 3.33], "color": "#FF4136"},
-                                        {"range": [3.33, 6.66], "color": "#FFDC00"},
-                                        {"range": [6.66, 10], "color": "#2ECC40"}
-                                    ]
-                                }
-                            ))
-                            score_gauge.update_layout(height=250, width=400)
-                            st.plotly_chart(score_gauge)
-                            
-                            # Display feedback and improvements
-                            st.markdown("#### Feedback")
-                            st.markdown(evaluation.get("feedback", "No feedback available"))
-                            
-                            st.markdown("#### Suggested Improvements")
-                            st.markdown(evaluation.get("improvements", "No improvements suggested"))
-                            
-                            # Display verification results if available
-                            if (st.session_state.verification_results and 
-                                st.session_state.current_question_index in st.session_state.verification_results):
-                                verification = st.session_state.verification_results[st.session_state.current_question_index]
-                                
-                                st.markdown("#### Technical Verification")
-                                st.markdown(f"**Accuracy: {verification.get('accuracy', 0)}/10**")
-                                st.markdown(verification.get("verification", "No verification available"))
-                                
-                                if verification.get("corrections", "N/A") != "N/A":
-                                    st.markdown("#### Corrections")
-                                    st.markdown(verification.get("corrections", "No corrections needed"))
-                                
-                                st.markdown("#### Sources")
-                                st.markdown(verification.get("sources", "No sources available"))
-        
-        with col3:
-            if st.button("Next Question" if st.session_state.current_question_index < len(st.session_state.questions) - 1 else "Finish Interview"):
-                # Save current answer if not already saved
-                if user_answer != st.session_state.answers[st.session_state.current_question_index]:
-                    st.session_state.answers[st.session_state.current_question_index] = user_answer
-                
-                # Move to next question or finish interview
-                if st.session_state.current_question_index < len(st.session_state.questions) - 1:
+            # Only show next button if we have an answer for the current question
+            if current_index < len(st.session_state.answers) - 1:
+                if st.button("Next Question", key="next_question"):
                     st.session_state.current_question_index += 1
-                else:
-                    st.session_state.interview_phase = "summary"
-                
-                st.rerun()
-    
-    elif st.session_state.interview_phase == "summary":
-        # Summary phase - Show performance report
-        st.subheader("Interview Performance Report")
-        
-        with st.spinner("Generating performance report..."):
-            # Generate comprehensive report
-            report = generate_performance_report(st.session_state.interview_data)
-            
-            # Display summary statistics
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Total Questions", report["stats"]["total_questions"])
-            with col2:
-                st.metric("Average Score", f"{report['stats']['average_score']:.1f}/10")
-            with col3:
-                st.metric("Interview Date", report["stats"]["timestamp"])
-            
-            # Performance visualizations
-            st.plotly_chart(report["visualizations"]["performance_gauge"], use_container_width=True)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.plotly_chart(report["visualizations"]["score_distribution"], use_container_width=True)
-            with col2:
-                st.plotly_chart(report["visualizations"]["score_per_question"], use_container_width=True)
-            
-            # Interview summary
-            st.markdown("## Interview Summary")
-            st.markdown(report["summary"]["summary"])
-            
-            # Question-by-question breakdown
-            st.markdown("## Question-by-Question Breakdown")
-            for i, row in report["qa_data"].iterrows():
-                with st.expander(f"Question {i+1}: {row['question'][:100]}...", expanded=False):
-                    st.markdown(f"**Question:** {row['question']}")
-                    st.markdown(f"**Your Answer:** {row['answer']}")
-                    st.markdown(f"**Score:** {row['score']}/10")
-                    st.markdown(f"**Feedback:** {row['feedback']}")
-                    st.markdown(f"**Improvements:** {row['improvements']}")
-                    
-                    # Display verification results if available
-                    if (st.session_state.verification_results and 
-                        i in st.session_state.verification_results):
-                        verification = st.session_state.verification_results[i]
-                        
-                        st.markdown("**Technical Verification**")
-                        st.markdown(f"Accuracy: {verification.get('accuracy', 0)}/10")
-                        st.markdown(verification.get("verification", "No verification available"))
-                        
-                        if verification.get("corrections", "N/A") != "N/A":
-                            st.markdown("**Corrections:**")
-                            st.markdown(verification.get("corrections", "No corrections needed"))
-            
-            # Action buttons
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("Start New Interview"):
-                    # Reset interview state
-                    st.session_state.interview_phase = "setup"
-                    st.session_state.current_question_index = 0
-                    st.session_state.questions = []
-                    st.session_state.answers = []
-                    st.session_state.evaluations = []
-                    st.session_state.total_score = 0
-                    st.session_state.interview_data = {}
-                    st.session_state.verification_results = {}
                     st.rerun()
-            
-            # Enhanced download options with multiple file formats
-            col1, col2 = st.columns(2)
-            with col1:
-                # CSV format - data only
-                report_csv = report["qa_data"].to_csv(index=False)
-                st.download_button(
-                    label="Download Report CSV",
-                    data=report_csv,
-                    file_name=f"interview_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                    mime="text/csv",
-                    help="Download raw data in CSV format"
-                )
-                
-            with col2:
-                # Create a formatted HTML report for PDF-like experience
-                # Build the HTML report without using f-strings with backslashes
-                
-                # Define CSS as a regular string
-                css_style = """
-                    <style>
-                        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
-                        h1 { color: #3366CC; text-align: center; }
-                        h2 { color: #3366CC; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-                        .stats { display: flex; justify-content: space-between; margin: 20px 0; }
-                        .stat-box { background-color: #f5f5f5; padding: 15px; border-radius: 5px; text-align: center; width: 30%; }
-                        .stat-value { font-size: 24px; font-weight: bold; margin: 10px 0; color: #3366CC; }
-                        .question { background-color: #f9f9f9; padding: 15px; margin: 15px 0; border-left: 5px solid #3366CC; }
-                        .score { font-weight: bold; color: #3366CC; }
-                        .feedback { margin-top: 10px; }
-                        .improvements { margin-top: 10px; color: #555; }
-                        .timestamp { text-align: right; font-style: italic; margin-top: 30px; color: #777; }
-                    </style>
-                """
-                
-                # Start building the HTML report using string concatenation instead of f-strings with CSS
-                html_report = """
-                <html>
-                <head>
-                    <title>InterviewMaster AI - Detailed Performance Report</title>
-                """ + css_style + """
-                </head>
-                <body>
-                    <h1>InterviewMaster AI - Detailed Performance Report</h1>
+            elif current_index < total_questions - 1 and current_index < len(st.session_state.answers):
+                if st.button("Next Question", key="next_question"):
+                    st.session_state.current_question_index += 1
+                    st.rerun()
+            elif current_index == total_questions - 1 and current_index < len(st.session_state.answers):
+                if st.button("Finish Interview", key="finish_interview"):
+                    st.session_state.interview_completed = True
                     
-                    <div class="stats">
-                        <div class="stat-box">
-                            <div>Total Questions</div>
-                            <div class="stat-value">""" + str(report["stats"]["total_questions"]) + """</div>
-                        </div>
-                        <div class="stat-box">
-                            <div>Average Score</div>
-                            <div class="stat-value">""" + f"{report['stats']['average_score']:.1f}" + """/10</div>
-                        </div>
-                        <div class="stat-box">
-                            <div>Interview Date</div>
-                            <div class="stat-value">""" + report["stats"]["timestamp"] + """</div>
-                        </div>
-                    </div>
-                    
-                    <h2>Interview Summary</h2>
-                    <div>""" + report["summary"]["summary"].replace("\n", "<br>") + """</div>
-                    
-                    <h2>Question-by-Question Breakdown</h2>
-                """
-                
-                # Add each question to the report
-                for i, row in report["qa_data"].iterrows():
-                    question_html = """
-                    <div class="question">
-                        <h3>Question """ + str(i+1) + """: """ + row["question"] + """</h3>
-                        <div><strong>Your Answer:</strong> """ + row["answer"] + """</div>
-                        <div class="score"><strong>Score:</strong> """ + str(row["score"]) + """/10</div>
-                        <div class="feedback"><strong>Feedback:</strong> """ + row["feedback"] + """</div>
-                        <div class="improvements"><strong>Improvements:</strong> """ + row["improvements"] + """</div>
-                    """
-                    
-                    # Add verification results if available
-                    if (st.session_state.verification_results and i in st.session_state.verification_results):
-                        verification = st.session_state.verification_results[i]
-                        question_html += """
-                        <div><strong>Technical Verification:</strong> 
-                            Accuracy: """ + str(verification.get('accuracy', 0)) + """/10<br>
-                            """ + verification.get("verification", "No verification available") + """
-                        </div>
-                        """
+                    # Generate the final report summary
+                    with st.spinner("Generating your interview report..."):
+                        report_data = {
+                            "round_type": st.session_state.selected_round,
+                            "topic": st.session_state.selected_topic,
+                            "difficulty": st.session_state.selected_difficulty,
+                            "questions": st.session_state.questions,
+                            "answers": st.session_state.answers,
+                            "evaluations": st.session_state.evaluations,
+                            "total_score": st.session_state.total_score
+                        }
                         
-                        if verification.get("corrections", "N/A") != "N/A":
-                            question_html += """
-                            <div><strong>Corrections:</strong> """ + verification.get("corrections", "") + """</div>
-                            """
+                        report_summary = generate_report_summary(report_data)
+                        st.session_state.report_summary = report_summary["summary"]
+                        st.session_state.average_score = report_summary["average_score"]
                     
-                    question_html += "</div>"
-                    html_report += question_html
-                
-                # Close the HTML document
-                html_report += """
-                    <div class="timestamp">Report generated on """ + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + """</div>
-                </body>
-                </html>
-                """
-                
-                st.download_button(
-                    label="Download Detailed HTML Report",
-                    data=html_report,
-                    file_name=f"detailed_interview_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
-                    mime="text/html",
-                    help="Download a complete formatted report with all details"
-                )
+                    st.rerun()
 
-if __name__ == "__main__":
-    main()
+def show_report_page():
+    """Display the final interview report"""
+    
+    # Prepare report data
+    report_data = {
+        "round_type": st.session_state.selected_round,
+        "topic": st.session_state.selected_topic,
+        "difficulty": st.session_state.selected_difficulty,
+        "questions": st.session_state.questions,
+        "answers": st.session_state.answers,
+        "evaluations": st.session_state.evaluations,
+        "total_score": st.session_state.total_score,
+        "report_summary": st.session_state.report_summary,
+        "average_score": st.session_state.average_score
+    }
+    
+    # Generate and display the report
+    generate_performance_report(report_data)
+
+# =========================================================================
+# MAIN APPLICATION
+# =========================================================================
+
+# Initialize session state
+if "initialized" not in st.session_state:
+    st.session_state.initialized = True
+    st.session_state.interview_started = False
+    st.session_state.interview_completed = False
+    st.session_state.current_question_index = 0
+    st.session_state.questions = []
+    st.session_state.answers = []
+    st.session_state.evaluations = []
+    st.session_state.selected_round = None
+    st.session_state.selected_topic = None
+    st.session_state.selected_difficulty = None
+    st.session_state.total_score = 0
+    st.session_state.gemini_api_initialized = False
+    st.session_state.api_key = os.getenv("GEMINI_API_KEY", "")
+    
+
+# Main application header
+st.title("🎙️ AI-Powered Virtual Interview Simulator")
+st.markdown("""
+This application simulates a real interview experience with:
+- Dynamic interview questions based on topics and difficulty
+- Text input for your answers with specialized coding input options
+- Specialized coding questions with code evaluation
+- AI evaluation of your responses using Gemini 1.5 Pro
+- Comprehensive performance report generation
+""")
+
+# Sidebar for interview configuration
+with st.sidebar:
+    st.header("Interview Configuration")
+    
+    # API Key input (if not provided in environment)
+    if not st.session_state.api_key:
+        api_key = st.text_input("Enter Gemini API Key:", type="password")
+        if api_key:
+            st.session_state.api_key = api_key
+    
+    if st.session_state.api_key and not st.session_state.gemini_api_initialized:
+        try:
+            initialize_gemini_api(st.session_state.api_key)
+            st.session_state.gemini_api_initialized = True
+            st.success("Gemini API initialized successfully!")
+        except Exception as e:
+            st.error(f"Failed to initialize Gemini API: {str(e)}")
+    
+    # Interview settings
+    if st.session_state.gemini_api_initialized and not st.session_state.interview_started:
+        st.subheader("Select Interview Type")
+        
+        # Round selection
+        round_options = list(INTERVIEW_ROUNDS.keys())
+        selected_round = st.selectbox("Interview Round", round_options)
+        
+        # Topic selection based on round
+        if selected_round:
+            topic_options = INTERVIEW_ROUNDS[selected_round]
+            selected_topic = st.selectbox("Topic", topic_options)
+            
+            # Difficulty selection
+            selected_difficulty = st.selectbox("Difficulty Level", DIFFICULTY_LEVELS)
+            
+            # Number of questions
+            num_questions = st.slider("Number of Questions", min_value=3, max_value=10, value=5)
+            
+            # Start interview button
+            if st.button("Start Interview"):
+                if selected_round and selected_topic and selected_difficulty:
+                    st.session_state.selected_round = selected_round
+                    st.session_state.selected_topic = selected_topic
+                    st.session_state.selected_difficulty = selected_difficulty
+                    st.session_state.num_questions = num_questions
+                    st.session_state.interview_started = True
+                    st.rerun()
+                else:
+                    st.warning("Please select all interview parameters")
+
+# Main content area
+if not st.session_state.interview_started:
+    if not st.session_state.gemini_api_initialized:
+        st.info("Please provide a Gemini API key to start using the interview simulator.")
+    else:
+        st.info("Configure your interview settings in the sidebar and click 'Start Interview' to begin.")
+    
+    # Display example interview information
+    st.subheader("Available Interview Rounds")
+    rounds_data = []
+    for round_name, topics in INTERVIEW_ROUNDS.items():
+        rounds_data.append({"Round Type": round_name, "Available Topics": ", ".join(topics[:3]) + "..."})
+    
+    st.table(pd.DataFrame(rounds_data))
+    
+    # How it works section
+    st.subheader("How It Works")
+    st.markdown("""
+    1. **Select Interview Parameters**: Choose the round type, topic, and difficulty level
+    2. **Start the Interview**: The system will generate questions based on your selections
+    3. **Answer Questions**: Type your answers (including specialized code editor for coding questions)
+    4. **Get Evaluated**: The AI will evaluate your responses in real-time
+    5. **Receive Feedback**: Get a detailed performance report after completing the interview
+    """)
+    
+    # Features section
+    st.subheader("Key Features")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("- 🎯 **Dynamic Question Generation**")
+        st.markdown("- 💻 **Code-Specific Questions**")
+        st.markdown("- 📝 **Specialized Input Options**")
+    with col2:
+        st.markdown("- 🧠 **Smart Answer Evaluation**")
+        st.markdown("- 📊 **Performance Analytics**")
+        st.markdown("- 📑 **Code Analysis**")
+    with col3:
+        st.markdown("- 📈 **Detailed Feedback Report**")
+        st.markdown("- 💼 **Multiple Interview Types**")
+        st.markdown("- 🚀 **Powered by Gemini 1.5 Pro**")
+else:
+    # Show interview page if interview started
+    show_interview_page()
+
+# Footer
+st.markdown("---")
+st.markdown("© 2023 AI Interview Simulator | Powered by Google Gemini 1.5 Pro API")
