@@ -1,5 +1,10 @@
-streamlit==1.28.0
-google-generativeai==0.3.1
-matplotlib==3.7.3
-pandas==2.0.3
-plotly==5.17.0
+streamlit
+pandas
+numpy
+matplotlib
+plotly
+Pillow
+google-generativeai
+google-api-python-client
+pytesseract
+requests
