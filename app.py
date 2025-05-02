@@ -20,8 +20,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 # Set page config
 st.set_page_config(
-    page_title="AI Interview Simulator Pro",
-    page_icon="🎙️",
+    page_title="InterviewMaster AI - Professional Interview Simulator",
+    page_icon="🎯",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -729,8 +729,75 @@ def main():
         st.session_state.resume_analysis = {}
         st.session_state.verification_results = {}
     
-    # Page header
-    st.title("🎙️ AI Interview Simulator Pro")
+    # Custom CSS for enhanced styling
+    st.markdown("""
+    <style>
+        /* Main container styling */
+        .main .block-container {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+        
+        /* Header styling */
+        h1 {
+            color: #3366CC;
+            text-align: center;
+            padding-bottom: 1.5rem;
+            border-bottom: 2px solid #f0f2f6;
+            margin-bottom: 2rem;
+        }
+        
+        /* Card-like container for content */
+        .stButton button {
+            width: 100%;
+            border-radius: 5px;
+            height: 3em;
+            font-weight: bold;
+        }
+        
+        /* Form fields */
+        div[data-baseweb="select"] {
+            margin-bottom: 1rem;
+        }
+        
+        /* Metrics styling */
+        [data-testid="stMetricValue"] {
+            font-size: 2rem !important;
+            color: #3366CC !important;
+        }
+        
+        /* Expander styling */
+        .streamlit-expanderHeader {
+            font-weight: bold;
+            color: #3366CC;
+        }
+        
+        /* Success messages */
+        .stSuccess {
+            padding: 1rem;
+            border-radius: 5px;
+        }
+        
+        /* Evaluation container */
+        .evaluation-container {
+            background-color: #f9f9f9;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            border-left: 5px solid #3366CC;
+        }
+        
+        /* Footer styling */
+        footer {
+            visibility: hidden;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Page header with enhanced styling
+    st.markdown("""
+    <h1>🎯 InterviewMaster AI <span style="font-size:0.8em; font-weight:normal; color:#555;">Professional Interview Simulator</span></h1>
+    """, unsafe_allow_html=True)
     
     # Sidebar for configuration and controls
     with st.sidebar:
@@ -891,90 +958,93 @@ def main():
                 st.rerun()
         
         with col2:
-            if st.button("Submit Answer"):
-                if not user_answer.strip():
-                    st.warning("Please provide an answer before submitting.")
-                else:
-                    with st.spinner("Evaluating your answer..."):
-                        # Save the answer
-                        st.session_state.answers[st.session_state.current_question_index] = user_answer
-                        
-                        # Evaluate the answer
-                        evaluation = cached_evaluate_answer(
-                            st.session_state.questions[st.session_state.current_question_index],
-                            user_answer,
-                            st.session_state.interview_data["round_type"],
-                            st.session_state.interview_data["topic"],
-                            st.session_state.interview_data["difficulty"]
-                        )
-                        
-                        st.session_state.evaluations[st.session_state.current_question_index] = evaluation
-                        st.session_state.total_score += evaluation["score"]
-                        st.session_state.interview_data["evaluations"] = st.session_state.evaluations
-                        st.session_state.interview_data["total_score"] = st.session_state.total_score
-                        
-                        # Verify answer using Google Search for technical rounds
-                        if "Technical" in st.session_state.interview_data["round_type"] or "Coding" in st.session_state.interview_data["round_type"]:
-                            with ThreadPoolExecutor() as executor:
-                                # Run verification in a parallel thread to avoid blocking
-                                future = executor.submit(cached_verify_answer,
-                                    st.session_state.questions[st.session_state.current_question_index],
-                                    user_answer,
-                                    st.session_state.interview_data["round_type"],
-                                    st.session_state.interview_data["topic"]
-                                )
-                                # Store verification results
-                                verification = future.result()
-                                if not st.session_state.verification_results:
-                                    st.session_state.verification_results = {}
-                                st.session_state.verification_results[st.session_state.current_question_index] = verification
-                        
-                        # Show the evaluation
-                        st.success("Answer evaluated!")
-                        
-                        # Display evaluation
-                        st.subheader("Evaluation")
-                        
-                        # Score indicator
-                        score_gauge = go.Figure(go.Indicator(
-                            mode="gauge+number",
-                            value=evaluation["score"],
-                            title={"text": "Score"},
-                            gauge={
-                                "axis": {"range": [0, 10]},
-                                "bar": {"color": "#3366CC"},
-                                "steps": [
-                                    {"range": [0, 3.33], "color": "#FF4136"},
-                                    {"range": [3.33, 6.66], "color": "#FFDC00"},
-                                    {"range": [6.66, 10], "color": "#2ECC40"}
-                                ]
-                            }
-                        ))
-                        score_gauge.update_layout(height=250, width=400)
-                        st.plotly_chart(score_gauge)
-                        
-                        # Display feedback and improvements
-                        st.markdown("#### Feedback")
-                        st.markdown(evaluation.get("feedback", "No feedback available"))
-                        
-                        st.markdown("#### Suggested Improvements")
-                        st.markdown(evaluation.get("improvements", "No improvements suggested"))
-                        
-                        # Display verification results if available
-                        if (st.session_state.verification_results and 
-                            st.session_state.current_question_index in st.session_state.verification_results):
-                            verification = st.session_state.verification_results[st.session_state.current_question_index]
+            # Improved submit answer button style and placement
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col1:
+                if st.button("Submit Answer", use_container_width=True, type="primary"):
+                    if not user_answer.strip():
+                        st.warning("Please provide an answer before submitting.")
+                    else:
+                        with st.spinner("Evaluating your answer..."):
+                            # Save the answer
+                            st.session_state.answers[st.session_state.current_question_index] = user_answer
                             
-                            st.markdown("#### Technical Verification")
-                            st.markdown(f"**Accuracy: {verification.get('accuracy', 0)}/10**")
-                            st.markdown(verification.get("verification", "No verification available"))
+                            # Evaluate the answer
+                            evaluation = cached_evaluate_answer(
+                                st.session_state.questions[st.session_state.current_question_index],
+                                user_answer,
+                                st.session_state.interview_data["round_type"],
+                                st.session_state.interview_data["topic"],
+                                st.session_state.interview_data["difficulty"]
+                            )
                             
-                            if verification.get("corrections", "N/A") != "N/A":
-                                st.markdown("#### Corrections")
-                                st.markdown(verification.get("corrections", "No corrections needed"))
+                            st.session_state.evaluations[st.session_state.current_question_index] = evaluation
+                            st.session_state.total_score += evaluation["score"]
+                            st.session_state.interview_data["evaluations"] = st.session_state.evaluations
+                            st.session_state.interview_data["total_score"] = st.session_state.total_score
                             
-                            st.markdown("#### Sources")
-                            st.markdown(verification.get("sources", "No sources available"))
+                            # Verify answer using Google Search for technical rounds
+                            if "Technical" in st.session_state.interview_data["round_type"] or "Coding" in st.session_state.interview_data["round_type"]:
+                                with ThreadPoolExecutor() as executor:
+                                    # Run verification in a parallel thread to avoid blocking
+                                    future = executor.submit(cached_verify_answer,
+                                        st.session_state.questions[st.session_state.current_question_index],
+                                        user_answer,
+                                        st.session_state.interview_data["round_type"],
+                                        st.session_state.interview_data["topic"]
+                                    )
+                                    # Store verification results
+                                    verification = future.result()
+                                    if not st.session_state.verification_results:
+                                        st.session_state.verification_results = {}
+                                    st.session_state.verification_results[st.session_state.current_question_index] = verification
+                            
+                            # Show the evaluation
+                            st.success("Answer evaluated!")
+                            
+                            # Display evaluation
+                            st.subheader("Evaluation")
+                            
+                            # Score indicator
+                            score_gauge = go.Figure(go.Indicator(
+                                mode="gauge+number",
+                                value=evaluation["score"],
+                                title={"text": "Score"},
+                                gauge={
+                                    "axis": {"range": [0, 10]},
+                                    "bar": {"color": "#3366CC"},
+                                    "steps": [
+                                        {"range": [0, 3.33], "color": "#FF4136"},
+                                        {"range": [3.33, 6.66], "color": "#FFDC00"},
+                                        {"range": [6.66, 10], "color": "#2ECC40"}
+                                    ]
+                                }
+                            ))
+                            score_gauge.update_layout(height=250, width=400)
+                            st.plotly_chart(score_gauge)
+                            
+                            # Display feedback and improvements
+                            st.markdown("#### Feedback")
+                            st.markdown(evaluation.get("feedback", "No feedback available"))
+                            
+                            st.markdown("#### Suggested Improvements")
+                            st.markdown(evaluation.get("improvements", "No improvements suggested"))
+                            
+                            # Display verification results if available
+                            if (st.session_state.verification_results and 
+                                st.session_state.current_question_index in st.session_state.verification_results):
+                                verification = st.session_state.verification_results[st.session_state.current_question_index]
+                                
+                                st.markdown("#### Technical Verification")
+                                st.markdown(f"**Accuracy: {verification.get('accuracy', 0)}/10**")
+                                st.markdown(verification.get("verification", "No verification available"))
+                                
+                                if verification.get("corrections", "N/A") != "N/A":
+                                    st.markdown("#### Corrections")
+                                    st.markdown(verification.get("corrections", "No corrections needed"))
+                                
+                                st.markdown("#### Sources")
+                                st.markdown(verification.get("sources", "No sources available"))
         
         with col3:
             if st.button("Next Question" if st.session_state.current_question_index < len(st.session_state.questions) - 1 else "Finish Interview"):
@@ -1058,13 +1128,113 @@ def main():
                     st.session_state.verification_results = {}
                     st.rerun()
             
-            with col2:
+            # Enhanced download options with multiple file formats
+            col1, col2 = st.columns(2)
+            with col1:
+                # CSV format - data only
                 report_csv = report["qa_data"].to_csv(index=False)
                 st.download_button(
                     label="Download Report CSV",
                     data=report_csv,
                     file_name=f"interview_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                    mime="text/csv"
+                    mime="text/csv",
+                    help="Download raw data in CSV format"
+                )
+                
+            with col2:
+                # Create a formatted HTML report for PDF-like experience
+                # Build the HTML report without using f-strings with backslashes
+                
+                # Define CSS as a regular string
+                css_style = """
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+                        h1 { color: #3366CC; text-align: center; }
+                        h2 { color: #3366CC; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+                        .stats { display: flex; justify-content: space-between; margin: 20px 0; }
+                        .stat-box { background-color: #f5f5f5; padding: 15px; border-radius: 5px; text-align: center; width: 30%; }
+                        .stat-value { font-size: 24px; font-weight: bold; margin: 10px 0; color: #3366CC; }
+                        .question { background-color: #f9f9f9; padding: 15px; margin: 15px 0; border-left: 5px solid #3366CC; }
+                        .score { font-weight: bold; color: #3366CC; }
+                        .feedback { margin-top: 10px; }
+                        .improvements { margin-top: 10px; color: #555; }
+                        .timestamp { text-align: right; font-style: italic; margin-top: 30px; color: #777; }
+                    </style>
+                """
+                
+                # Start building the HTML report using string concatenation instead of f-strings with CSS
+                html_report = """
+                <html>
+                <head>
+                    <title>InterviewMaster AI - Detailed Performance Report</title>
+                """ + css_style + """
+                </head>
+                <body>
+                    <h1>InterviewMaster AI - Detailed Performance Report</h1>
+                    
+                    <div class="stats">
+                        <div class="stat-box">
+                            <div>Total Questions</div>
+                            <div class="stat-value">""" + str(report["stats"]["total_questions"]) + """</div>
+                        </div>
+                        <div class="stat-box">
+                            <div>Average Score</div>
+                            <div class="stat-value">""" + f"{report['stats']['average_score']:.1f}" + """/10</div>
+                        </div>
+                        <div class="stat-box">
+                            <div>Interview Date</div>
+                            <div class="stat-value">""" + report["stats"]["timestamp"] + """</div>
+                        </div>
+                    </div>
+                    
+                    <h2>Interview Summary</h2>
+                    <div>""" + report["summary"]["summary"].replace("\n", "<br>") + """</div>
+                    
+                    <h2>Question-by-Question Breakdown</h2>
+                """
+                
+                # Add each question to the report
+                for i, row in report["qa_data"].iterrows():
+                    question_html = """
+                    <div class="question">
+                        <h3>Question """ + str(i+1) + """: """ + row["question"] + """</h3>
+                        <div><strong>Your Answer:</strong> """ + row["answer"] + """</div>
+                        <div class="score"><strong>Score:</strong> """ + str(row["score"]) + """/10</div>
+                        <div class="feedback"><strong>Feedback:</strong> """ + row["feedback"] + """</div>
+                        <div class="improvements"><strong>Improvements:</strong> """ + row["improvements"] + """</div>
+                    """
+                    
+                    # Add verification results if available
+                    if (st.session_state.verification_results and i in st.session_state.verification_results):
+                        verification = st.session_state.verification_results[i]
+                        question_html += """
+                        <div><strong>Technical Verification:</strong> 
+                            Accuracy: """ + str(verification.get('accuracy', 0)) + """/10<br>
+                            """ + verification.get("verification", "No verification available") + """
+                        </div>
+                        """
+                        
+                        if verification.get("corrections", "N/A") != "N/A":
+                            question_html += """
+                            <div><strong>Corrections:</strong> """ + verification.get("corrections", "") + """</div>
+                            """
+                    
+                    question_html += "</div>"
+                    html_report += question_html
+                
+                # Close the HTML document
+                html_report += """
+                    <div class="timestamp">Report generated on """ + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + """</div>
+                </body>
+                </html>
+                """
+                
+                st.download_button(
+                    label="Download Detailed HTML Report",
+                    data=html_report,
+                    file_name=f"detailed_interview_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+                    mime="text/html",
+                    help="Download a complete formatted report with all details"
                 )
 
 if __name__ == "__main__":
