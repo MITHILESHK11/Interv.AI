@@ -1,4 +1,4 @@
-# 🎙️ AI-Powered Virtual Interview Simulator
+# 🎙️ Interv.AI AI-Powered Virtual Interview Simulator
 
 This project is an interactive Streamlit-based application that simulates a realistic interview environment powered by **Google Gemini 1.5 Pro**. It dynamically generates questions, evaluates answers, and produces comprehensive performance reports based on your interview round and topic selections.
 
@@ -90,4 +90,4 @@ After completing an interview, you'll receive:
 
 ## 📜 License
 
-© 2023 AI Interview Simulator | Powered by Google Gemini 1.5 Pro API
+© 2025 Interv.AI | Powered by Google Gemini 1.5 Pro API
