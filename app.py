@@ -200,7 +200,7 @@ def evaluate_answer(question, answer, round_type, topic, difficulty):
         Dictionary containing evaluation score and feedback
     """
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         # Different prompt for coding rounds
         if "Coding" in round_type:
@@ -299,7 +299,7 @@ def generate_report_summary(interview_data):
         Dictionary with report sections
     """
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         # Prepare questions and answers for the prompt
         qa_pairs = ""
