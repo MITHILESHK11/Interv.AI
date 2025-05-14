@@ -138,7 +138,7 @@ def generate_interview_questions(round_type, topic, difficulty, num_questions=5)
         List of generated questions
     """
     try:
-        model = genai.GenerativeModel('gemini-2.5-pro')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         # Different prompt for coding rounds
         if "Coding" in round_type:
